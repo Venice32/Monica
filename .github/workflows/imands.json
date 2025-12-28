@@ -1,3 +1,0 @@
-{
-  "command": "echo 'Agent is checking in from %COMPUTERNAME%' > C:\\Users\\Public\\Downloads\\chimere_checkin.txt"
-}
